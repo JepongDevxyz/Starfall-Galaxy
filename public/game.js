@@ -7,10 +7,12 @@ const VW = 1280, VH = 720;
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 let CW = 0, CH = 0, DPR = 1;
+let VIEW_W = VW; // visible world width: grows past VW on screens wider than 16:9 so the field fills the phone edge-to-edge, like the reference video
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   CW = window.innerWidth; CH = window.innerHeight;
+  VIEW_W = Math.max(VW, Math.round(CW / Math.max(1, CH) * VH));
   canvas.width = Math.round(CW * DPR); canvas.height = Math.round(CH * DPR);
 }
 window.addEventListener('resize', resize); resize();
@@ -284,7 +286,7 @@ function updateOrbs(dt) {
       const b = G.boss;
       if (Math.abs(o.x - b.x) < b.w / 2 + o.r * 0.6 && Math.abs(o.y - b.y) < b.h / 2) { o.hit.add(-1); damageBoss(18, o.owner); explodeOrb(o); }
     }
-    if (!o.dead && (o.x > VW + 130 || o.t > 3.4)) explodeOrb(o);
+    if (!o.dead && (o.x > VIEW_W + 130 || o.t > 3.4)) explodeOrb(o);
   }
   G.orbs = G.orbs.filter((o) => !o.dead);
 }
@@ -374,22 +376,22 @@ function spawnEnemyOf(type, x, y) {
 }
 function spawnEnemy() { // random single (boss-fight trickle)
   const roll = Math.random();
-  spawnEnemyOf(roll < 0.55 ? 0 : roll < 0.85 ? 1 : 2, VW + 50, rand(50, VH - 50));
+  spawnEnemyOf(roll < 0.55 ? 0 : roll < 0.85 ? 1 : 2, VIEW_W + 50, rand(50, VH - 50));
 }
 // formations, as seen in the reference video: rows fly in together on one lane
-function spawnRow(type, n, y, gap) { for (let i = 0; i < n; i++) spawnEnemyOf(type, VW + 60 + i * (gap || 74), y); }
-function spawnStack(n, y) { for (let i = 0; i < n; i++) spawnEnemyOf(2, VW + 60 + (i % 2) * 40, clamp(y + (i - (n - 1) / 2) * 122, 60, VH - 60)); }
-function spawnPair(type) { const y = rand(90, VH - 90); spawnEnemyOf(type, VW + 60, y); spawnEnemyOf(type, VW + 60, clamp(y + (Math.random() < 0.5 ? -120 : 120), 60, VH - 60)); }
+function spawnRow(type, n, y, gap) { for (let i = 0; i < n; i++) spawnEnemyOf(type, VIEW_W + 60 + i * (gap || 74), y); }
+function spawnStack(n, y) { for (let i = 0; i < n; i++) spawnEnemyOf(2, VIEW_W + 60 + (i % 2) * 40, clamp(y + (i - (n - 1) / 2) * 122, 60, VH - 60)); }
+function spawnPair(type) { const y = rand(90, VH - 90); spawnEnemyOf(type, VIEW_W + 60, y); spawnEnemyOf(type, VIEW_W + 60, clamp(y + (Math.random() < 0.5 ? -120 : 120), 60, VH - 60)); }
 function spawnPowerup() {
   if (G.powerups.length >= 2) return; // the reference field holds up to two orbs at once
   // the Power-up Orbs documented in the reference's own How-to-Play guide
   const roll = Math.random();
   const kind = roll < 0.30 ? 'split' : roll < 0.60 ? 'pierce' : roll < 0.80 ? 'shield' : 'energy';
-  G.powerups.push({ id: nextId++, kind, x: VW + 40, y: rand(70, VH - 70), vx: -45, t: rand(0, 6) }); // orbs drift in slowly, as in the reference
+  G.powerups.push({ id: nextId++, kind, x: VIEW_W + 40, y: rand(70, VH - 70), vx: -45, t: rand(0, 6) }); // orbs drift in slowly, as in the reference
 }
 function spawnBoss(hp, targetX) {
-  G.boss = { x: VW + 120, y: VH / 2, w: 320, h: 680, hp: hp || 42, maxHp: hp || 42, flash: 0, seed: Math.random() * 1000, enterT: 0, targetX: targetX || 1024 };
-  addFloater(VW - 320, 90, '⚠ PILLAR OF CREATION ⚠', '#d8b4fe');
+  G.boss = { x: VIEW_W + 120, y: VH / 2, w: 320, h: 680, hp: hp || 42, maxHp: hp || 42, flash: 0, seed: Math.random() * 1000, enterT: 0, targetX: targetX || Math.round(VIEW_W * 0.8) };
+  addFloater(VIEW_W - 320, 90, '⚠ PILLAR OF CREATION ⚠', '#d8b4fe');
   toast('A Pillar of Creation has appeared! Shoot it down!');
   updateBossUI();
 }
@@ -402,16 +404,16 @@ function buildWave(n) {
   const ev = (at, fn) => q.push({ at, fn });
   const lane = () => rand(90, VH - 90);
   if (n === 1) {
-    ev(0.8, () => spawnEnemyOf(0, VW + 50, lane()));
-    ev(3, () => spawnEnemyOf(1, VW + 50, lane()));
+    ev(0.8, () => spawnEnemyOf(0, VIEW_W + 50, lane()));
+    ev(3, () => spawnEnemyOf(1, VIEW_W + 50, lane()));
     ev(6, () => spawnPair(0));
-    ev(9, () => spawnEnemyOf(1, VW + 50, lane()));
+    ev(9, () => spawnEnemyOf(1, VIEW_W + 50, lane()));
     ev(12, () => spawnRow(0, 3, lane()));
-    ev(15, () => spawnEnemyOf(1, VW + 50, lane()));
+    ev(15, () => spawnEnemyOf(1, VIEW_W + 50, lane()));
     ev(18, () => spawnRow(1, 4, lane()));
     ev(22, () => spawnStack(2, VH / 2));
     ev(26, () => spawnPair(1));
-    ev(30, () => { spawnEnemyOf(0, VW + 50, lane()); spawnEnemyOf(1, VW + 50, lane()); });
+    ev(30, () => { spawnEnemyOf(0, VIEW_W + 50, lane()); spawnEnemyOf(1, VIEW_W + 50, lane()); });
     ev(34, () => spawnRow(0, 3, lane()));
     ev(38, () => spawnBoss(42));
   } else if (n === 2) {
@@ -422,7 +424,7 @@ function buildWave(n) {
     ev(15, () => spawnStack(3, VH / 2));
     ev(19, () => spawnPair(1));
     ev(23, () => spawnRow(1, 5, lane()));
-    ev(27, () => { spawnEnemyOf(2, VW + 50, lane()); spawnPair(0); });
+    ev(27, () => { spawnEnemyOf(2, VIEW_W + 50, lane()); spawnPair(0); });
     ev(31, () => { spawnStack(2, lane()); spawnPair(1); });
     ev(36, () => spawnBoss(58));
   } else {
@@ -432,9 +434,9 @@ function buildWave(n) {
     ev(8, () => { spawnPair(1); spawnStack(2, lane()); });
     ev(12, () => spawnRow(1, 5, lane()));
     ev(16, () => spawnStack(3, lane()));
-    ev(20, () => { spawnEnemyOf(0, VW + 50, lane()); spawnEnemyOf(1, VW + 50, lane()); spawnEnemyOf(2, VW + 50, lane()); });
+    ev(20, () => { spawnEnemyOf(0, VIEW_W + 50, lane()); spawnEnemyOf(1, VIEW_W + 50, lane()); spawnEnemyOf(2, VIEW_W + 50, lane()); });
     ev(24, () => spawnRow(1, 4, lane()));
-    ev(28, () => spawnBoss(hp, 820)); // later Pillars advance into the field, burning
+    ev(28, () => spawnBoss(hp, Math.round(VIEW_W * 0.64))); // later Pillars advance into the field, burning
   }
   return q;
 }
@@ -524,7 +526,7 @@ function update(dt) {
     const ease = 1 - Math.exp(-14 * dt);
     p.vx += (mv.x * SPEED - p.vx) * ease;
     p.vy += (mv.y * SPEED - p.vy) * ease;
-    p.x = clamp(p.x + p.vx * dt, 36, VW - 90);
+    p.x = clamp(p.x + p.vx * dt, 36, VIEW_W - 90);
     p.y = clamp(p.y + p.vy * dt, 36, VH - 36);
     // auto-fire
     p.fireT -= dt;
@@ -553,8 +555,8 @@ function update(dt) {
   if (G.powerT <= 0) { spawnPowerup(); G.powerT = rand(8, 13); }
   if (G.boss) {
     const b = G.boss;
-    const tx = b.targetX || 1024;
-    if (b.enterT < 1) { b.enterT += dt * 0.7; b.x = (VW + 120) - ((VW + 120) - tx) * Math.min(1, b.enterT); }
+    const tx = b.targetX || Math.round(VIEW_W * 0.8);
+    if (b.enterT < 1) { b.enterT += dt * 0.7; b.x = (VIEW_W + 120) - ((VIEW_W + 120) - tx) * Math.min(1, b.enterT); }
     if (b.flash > 0) b.flash -= dt;
   }
   updateOrbs(dt);
@@ -573,7 +575,7 @@ function update(dt) {
       if (dx * dx + dy * dy < (e.r + bl.r) * (e.r + bl.r)) { bl.hit.add(e.id); damageEnemy(e, bl.dmg || 1, bl.owner); explode(bl.x, bl.y, '#ffd1e8', 3, false); }
     }
   }
-  G.bullets = G.bullets.filter((b) => b.x < VW + 40);
+  G.bullets = G.bullets.filter((b) => b.x < VIEW_W + 40);
 
   // ---- enemies
   for (const e of G.enemies) {
@@ -730,6 +732,7 @@ function drawBackground() {
 }
 
 function worldTransform() {
+  if (CW / Math.max(1, CH) >= VW / VH - 0.001) { const s = CH / VH; return { s, ox: 0, oy: 0 }; } // wide: field starts at the left edge and extends right
   const s = Math.min(CW / VW, CH / VH);
   return { s, ox: (CW - VW * s) / 2, oy: (CH - VH * s) / 2 };
 }
@@ -1004,7 +1007,7 @@ function drawBoss(b) {
     ctx.restore();
   }
   // HP bar across the pillar, as in the reference (dark bar, green fill)
-  const barW = 234, bx = clamp(cx - barW / 2, 8, VW - barW - 8), by = b.y - VH * 0.29;
+  const barW = 234, bx = clamp(cx - barW / 2, 8, VIEW_W - barW - 8), by = b.y - VH * 0.29;
   ctx.fillStyle = 'rgba(2,6,18,0.78)'; ctx.fillRect(bx - 2, by - 2, barW + 4, 19);
   ctx.strokeStyle = 'rgba(220,235,255,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(bx - 2, by - 2, barW + 4, 19);
   ctx.fillStyle = '#101828'; ctx.fillRect(bx, by, barW, 15);
