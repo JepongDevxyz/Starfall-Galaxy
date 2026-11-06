@@ -1,0 +1,16 @@
+[Unit]
+Description=Stellar Starshots - 2P Space Shooter
+After=network.target
+
+[Service]
+Type=simple
+# Change User and WorkingDirectory to where the game lives on your instance.
+User=ubuntu
+WorkingDirectory=/opt/stellar-2p-game
+Environment=PORT=8080
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
