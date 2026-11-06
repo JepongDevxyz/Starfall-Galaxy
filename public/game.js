@@ -133,6 +133,26 @@ function makeJoystick(el, side) {
 const joy1 = makeJoystick($('joy1'), 0);
 const joy2 = makeJoystick($('joy2'), 1);
 
+/* Touch controls are OPTIONAL on PC/laptop (Jepong's order): Auto = shown on
+   touch devices only, On = always, Off = never. The keyboard always works. */
+let touchMode = 'auto';
+try { touchMode = localStorage.getItem('sg_touch') || 'auto'; } catch (_) {}
+function touchControlsOn() {
+  if (touchMode === 'on') return true;
+  if (touchMode === 'off') return false;
+  return ('ontouchstart' in window) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+function refreshTouchUI() {
+  const label = 'Touch Controls: ' + touchMode.charAt(0).toUpperCase() + touchMode.slice(1);
+  document.querySelectorAll('.touchModeBtn').forEach((b) => { b.textContent = label; });
+  if ($('hud').classList.contains('on')) showControls();
+}
+function cycleTouchMode() {
+  touchMode = touchMode === 'auto' ? 'on' : touchMode === 'on' ? 'off' : 'auto';
+  try { localStorage.setItem('sg_touch', touchMode); } catch (_) {}
+  refreshTouchUI();
+}
+
 function resetJoystickBases() {
   if (!joy1.active) joy1.resetBase(false);
   if (!joy2.active) joy2.resetBase(false);
@@ -144,6 +164,7 @@ function isInteractiveTarget(target) {
 }
 function routePointerDown(e) {
   if (G.phase !== 'running' && G.phase !== 'countdown') return;
+  if (!touchControlsOn()) return; // PC/laptop with touch controls off: keyboard only
   if (isInteractiveTarget(e.target)) return;
   const leftZone = e.clientX < window.innerWidth * 0.45;
   const joy = leftZone ? joy1 : (mode === 'local' ? joy2 : null);
@@ -1258,14 +1279,15 @@ function setCount(n) {
 /* ------------------------------------------------------------------ flow */
 function showControls() {
   $('hud').classList.add('on');
-  $('skill1').classList.add('on');
-  // joystick art stays visible during play even without touch (desktop),
-  // like the reference phone UI; the knob still follows drag input
-  $('joy1').classList.add('on');
+  // touch controls (joysticks + skill buttons) are optional on PC/laptop:
+  // Auto shows them on touch devices only; On/Off forces the choice
+  const tc = touchControlsOn();
+  $('skill1').classList.toggle('on', tc);
+  $('joy1').classList.toggle('on', tc);
   const local = mode === 'local';
   document.body.classList.toggle('local2p', local);
-  $('skill2').classList.toggle('on', local);
-  $('joy2').classList.toggle('on', local);
+  $('skill2').classList.toggle('on', local && tc);
+  $('joy2').classList.toggle('on', local && tc);
   resetJoystickBases();
 }
 function hideControls() {
@@ -1516,6 +1538,9 @@ $('btnJoin').addEventListener('click', joinRoom);
 $('joinCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
 $('btnCancelLobby').addEventListener('click', () => { closeWS(); $('lobbyBox').classList.remove('on'); toast('Online lobby closed'); });
 $('btnPause').addEventListener('click', () => { ensureAudio(); pauseGame(); });
+document.querySelectorAll('.touchModeBtn').forEach((b) => b.addEventListener('click', () => { ensureAudio(); cycleTouchMode(); }));
+refreshTouchUI();
+{ const ra = $('rotateAnyway'); if (ra) ra.addEventListener('click', () => document.body.classList.add('no-rotate')); }
 $('btnResume').addEventListener('click', resumeGame);
 $('btnRestart').addEventListener('click', () => { if (mode === 'guest') { toast('Only the host can restart'); return; } startGame(mode); });
 $('btnQuit').addEventListener('click', quitToMenu);
