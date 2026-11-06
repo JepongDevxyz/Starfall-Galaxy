@@ -202,6 +202,12 @@
     #rotateOverlay{display:flex}
     body.no-rotate #rotateOverlay{display:none}
   }
+  /* "Play in Landscape" button: only offered while the phone is in portrait */
+  .landscapeBtn{display:none}
+  @media (orientation:portrait) and (pointer:coarse){
+    .landscapeBtn{display:block}
+  }
+  #btnLandscape{width:min(280px,80vw);font-size:17px}
 </style>
 </head>
 <body>
@@ -284,14 +290,7 @@
         </div>
       </div>
     </div>
-    <div class="help">
-      <b>Controls</b><br>
-      P1: <b>WASD</b> move · <b>Space / E</b> Star Orb skill · touch joystick (left)<br>
-      P2: <b>Arrow keys</b> move · <b>/</b> or <b>.</b> Star Orb skill · touch joystick (right)<br>
-      Shooting is automatic — Piercing Starshots fly through whole lines of meteors, and every hit scores +20. Clear each wave's formations and its Pillar.<br>
-      Power-up Orbs drift in: <b>Starshot Split</b> (extra shots above & below), <b>Piercing Barrage</b> (attack speed), <b>Stellar Shield</b> (long bubble — plow through the swarm), gold <b>Stellar Energy</b> (+1 Star Orb charge). Star Orb charges (max 2/2) also come from meteor kills.<br>
-      In co-op, a downed pilot respawns in 5s while their partner is alive.
-    </div>
+    <button class="btn challenge landscapeBtn" style="margin-top:10px">Play in Landscape</button>
     <button class="btn touchModeBtn" style="margin-top:10px">Touch Controls: Auto</button>
     <div class="rotate-hint">Tip: rotate your phone to landscape for the best view.</div>
   </div>
@@ -332,6 +331,7 @@
   <svg class="rot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10.5 5h3"/><path d="M20.8 8.4A9.2 9.2 0 0 0 4.6 5.9"/><path d="M3.4 3.2v3.4h3.4"/></svg>
   <div class="rot-title">Rotate Your Phone</div>
   <div class="rot-sub">Starfall Galaxy is played in <b>landscape</b>. Turn your phone sideways for the full view.</div>
+  <button id="btnLandscape" class="btn challenge">Play in Landscape</button>
   <button id="rotateAnyway">Continue in portrait</button>
 </div>
 
