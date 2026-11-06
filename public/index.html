@@ -187,6 +187,21 @@
   @media (orientation:portrait) and (max-width:700px){
     .rotate-hint{display:block;margin-top:10px;font-size:12px;color:var(--accent2);font-weight:700}
   }
+  /* rotate-to-landscape tutorial overlay: portrait phones get a friendly
+     full-screen prompt the moment the site opens (Jepong's order) */
+  #rotateOverlay{position:fixed;inset:0;z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:radial-gradient(120% 90% at 50% 0%,var(--bg2),var(--bg));color:var(--ink);text-align:center;padding:24px}
+  #rotateOverlay .rot-icon{width:92px;height:92px;color:var(--gold);animation:rotPhone 2.2s ease-in-out infinite}
+  @keyframes rotPhone{0%,25%{transform:rotate(0deg)}65%,100%{transform:rotate(90deg)}}
+  #rotateOverlay .rot-title{font-family:var(--serif);font-size:27px;font-weight:900;color:var(--gold)}
+  #rotateOverlay .rot-sub{font-size:14.5px;color:var(--muted);max-width:300px;line-height:1.45}
+  #rotateOverlay .rot-sub b{color:var(--ink)}
+  #rotateAnyway{margin-top:8px;background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+    padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+  @media (orientation:portrait) and (pointer:coarse){
+    #rotateOverlay{display:flex}
+    body.no-rotate #rotateOverlay{display:none}
+  }
 </style>
 </head>
 <body>
@@ -277,6 +292,7 @@
       Power-up Orbs drift in: <b>Starshot Split</b> (extra shots above & below), <b>Piercing Barrage</b> (attack speed), <b>Stellar Shield</b> (long bubble — plow through the swarm), gold <b>Stellar Energy</b> (+1 Star Orb charge). Star Orb charges (max 2/2) also come from meteor kills.<br>
       In co-op, a downed pilot respawns in 5s while their partner is alive.
     </div>
+    <button class="btn touchModeBtn" style="margin-top:10px">Touch Controls: Auto</button>
     <div class="rotate-hint">Tip: rotate your phone to landscape for the best view.</div>
   </div>
 </div>
@@ -288,6 +304,7 @@
     <p class="game-sub">The swarm waits for no one… except now.</p>
     <button class="btn primary" id="btnResume">Resume</button>
     <button class="btn" id="btnRestart">Restart</button>
+    <button class="btn touchModeBtn">Touch Controls: Auto</button>
     <button class="btn" id="btnQuit">Quit to Menu</button>
   </div>
 </div>
@@ -309,6 +326,14 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- Rotate-to-landscape tutorial (portrait phones) -->
+<div id="rotateOverlay" role="dialog" aria-label="Rotate your phone">
+  <svg class="rot-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10.5 5h3"/><path d="M20.8 8.4A9.2 9.2 0 0 0 4.6 5.9"/><path d="M3.4 3.2v3.4h3.4"/></svg>
+  <div class="rot-title">Rotate Your Phone</div>
+  <div class="rot-sub">Starfall Galaxy is played in <b>landscape</b>. Turn your phone sideways for the full view.</div>
+  <button id="rotateAnyway">Continue in portrait</button>
+</div>
 
 <script src="game.js"></script>
 </body>
