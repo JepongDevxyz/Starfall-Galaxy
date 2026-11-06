@@ -1541,6 +1541,19 @@ $('btnPause').addEventListener('click', () => { ensureAudio(); pauseGame(); });
 document.querySelectorAll('.touchModeBtn').forEach((b) => b.addEventListener('click', () => { ensureAudio(); cycleTouchMode(); }));
 refreshTouchUI();
 { const ra = $('rotateAnyway'); if (ra) ra.addEventListener('click', () => document.body.classList.add('no-rotate')); }
+/* "Play in Landscape" button (Jepong's order): one tap goes fullscreen and
+   locks the screen to landscape — no manual rotating needed on Android.
+   Where the browser refuses (e.g. iOS), the rotate prompt stays as the guide. */
+async function goLandscape() {
+  try {
+    const el = document.documentElement;
+    if (el.requestFullscreen && !document.fullscreenElement) {
+      try { await el.requestFullscreen({ navigationUI: 'hide' }); } catch (_) { await el.requestFullscreen(); }
+    }
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+  } catch (_) { /* unsupported: manual rotate prompt remains */ }
+}
+document.querySelectorAll('#btnLandscape, .landscapeBtn').forEach((b) => b.addEventListener('click', () => { ensureAudio(); goLandscape(); }));
 $('btnResume').addEventListener('click', resumeGame);
 $('btnRestart').addEventListener('click', () => { if (mode === 'guest') { toast('Only the host can restart'); return; } startGame(mode); });
 $('btnQuit').addEventListener('click', quitToMenu);
