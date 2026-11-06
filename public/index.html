@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Starfall Galaxy — 2 Player Space Shooter</title>
+<style>
+  :root{
+    --bg:#07071a; --bg2:#120b2e; --card:rgba(20,16,48,.88); --card-solid:#16123a;
+    --ink:#f4f1ff; --muted:#a79fe0; --line:rgba(150,140,255,.28);
+    --accent:#ff5da2; --accent2:#ffb020; --teal:#2ee6c8; --danger:#ff4d6d;
+    --chip:rgba(255,255,255,.08); --good:#4ade80;
+    --serif:Georgia,'Times New Roman',Times,serif; --gold:#ffd76a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+  #game{position:fixed;inset:0;width:100%;height:100%;display:block;background:radial-gradient(120% 100% at 70% 20%,var(--bg2),var(--bg));touch-action:none;overscroll-behavior:none}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:5}
+  #hud.on{display:block}
+  /* Hearts are drawn on the canvas above each player (like the reference) — DOM rows stay hidden */
+  .hearts-wrap{display:none}
+  .hearts-row{display:flex;align-items:center;gap:6px}
+  .hearts-row .pname{font-size:11px;font-weight:800;letter-spacing:.06em}
+  .p1name{color:var(--accent)} .p2name{color:var(--teal)}
+  .heart{width:20px;height:20px;flex:0 0 auto}
+  .heart.off{opacity:.18;filter:grayscale(1)}
+  .heart.downed-txt{font-size:11px;color:var(--danger);font-weight:800}
+  .stats{position:absolute;top:calc(6px + env(safe-area-inset-top));right:max(10px,4.6vw);display:flex;align-items:flex-start;gap:10px}
+  .stats-box{background:none;border:none;padding:2px 4px 0 0;text-align:right}
+  .points-line{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .hud-label{height:clamp(15px,1.55vw,30px);width:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.55))}
+  .digits{display:inline-flex;align-items:center}
+  .digits img{display:block;width:auto}
+  .digits.gold img{height:clamp(27px,2.35vw,45px)}
+  .digits.white img{height:clamp(23px,1.85vw,36px)}
+  .points-line-x{font-family:var(--serif);font-size:clamp(14px,1.45vw,28px);color:#cfdcff;font-weight:600;
+    text-shadow:0 2px 8px rgba(0,0,0,.65);white-space:nowrap}
+  .points-line b{color:var(--gold);font-size:1.55em;font-weight:900;margin-left:6px;font-family:var(--serif);
+    text-shadow:0 2px 10px rgba(0,0,0,.6)}
+  .sub-line{display:flex;gap:16px;justify-content:flex-end;margin-top:2px;
+    font-family:var(--serif);font-size:clamp(12px,1.05vw,20px);font-weight:700;text-shadow:0 2px 8px rgba(0,0,0,.65)}
+  .sub-line .crys{color:#e6d4ff;display:flex;align-items:center;gap:5px}
+  .sub-line .timer{color:#fff;display:flex;align-items:center;gap:5px}
+  .sub-line .timer .hg{height:clamp(15px,1.15vw,22px);width:auto}
+  .icon-btn{pointer-events:auto;border-radius:50%;border:3px solid var(--gold);
+    background:radial-gradient(circle at 35% 30%,#7ef0dd,#14b8a6 58%,#0b7c74);color:#fff;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;
+    box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 2px 6px rgba(255,255,255,.45)}
+  .icon-btn:active{transform:scale(.94)}
+  #btnPause{width:clamp(52px,4.3vw,82px);height:clamp(52px,4.3vw,82px);border:none;background:none;padding:0;cursor:pointer;pointer-events:auto;flex:0 0 auto;filter:drop-shadow(0 4px 14px rgba(0,0,0,.45))}
+  #btnPause img{width:100%;height:100%;display:block}
+  #btnPause:active{transform:scale(.94)}
+  #btnMute{position:absolute;top:calc(46px + env(safe-area-inset-top));right:8px;width:clamp(26px,1.8vw,34px);height:clamp(26px,1.8vw,34px);border-width:2px;opacity:.5;z-index:7}
+  #btnMute svg{width:52%;height:52%}
+  /* Boss HP bar is drawn on the canvas across the pillar (like the reference) — DOM bar stays hidden */
+  #bossWrap{display:none !important}
+  #bossWrap .boss-name{text-align:center;font-size:12px;font-weight:800;letter-spacing:.12em;color:#d8b4fe;text-shadow:0 2px 8px #000}
+  #bossBar{height:12px;border-radius:999px;background:rgba(0,0,0,.55);border:1px solid var(--line);overflow:hidden;margin-top:4px}
+  #bossFill{height:100%;width:100%;background:linear-gradient(90deg,#22c55e,#4ade80);transition:width .15s}
+
+  /* ---------- Touch controls ---------- */
+  .joy{position:fixed;width:clamp(96px,12vw,230px);height:clamp(96px,12vw,230px);border-radius:50%;opacity:.9;
+    border:2px solid rgba(190,210,255,.35);
+    background:radial-gradient(circle,rgba(140,170,255,.08) 55%,rgba(140,170,255,.15) 80%,rgba(160,190,255,.05) 100%);
+    display:none;z-index:6;pointer-events:auto;touch-action:none}
+  .joy.on{display:block}
+  .joy.returning{transition:left .18s ease,top .18s ease}
+  .joy .knob{position:absolute;left:50%;top:50%;width:44%;height:44%;border-radius:50%;
+    transform:translate(-50%,-50%);border:none;
+    background:url('assets/ui_knob.png') center/contain no-repeat;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+  .joy .joy-label{display:none}
+  #joy1{left:18px;bottom:calc(22px + env(safe-area-inset-bottom))}
+  #joy2{right:18px;bottom:calc(22px + env(safe-area-inset-bottom))}
+  .skill-btn{position:fixed;width:clamp(72px,10vw,192px);aspect-ratio:200/179;border:none;z-index:6;display:none;
+    background:url('assets/ui_skill.png') center/contain no-repeat transparent;color:#431407;cursor:pointer;
+    filter:drop-shadow(0 6px 18px rgba(0,0,0,.5));pointer-events:auto;touch-action:none;
+    flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:9%}
+  .skill-btn.on{display:flex}
+  .skill-btn:active{transform:scale(.93)}
+  .skill-btn svg{display:none}
+  /* the one and only charge label: bottom-centre inside the button, over the disc */
+  .skill-btn .charges{position:absolute;left:0;right:0;top:80%;transform:translateY(-50%);text-align:center;
+    font-family:var(--serif);font-size:clamp(12px,1.15vw,22px);font-weight:900;line-height:1;color:#3a1503;
+    text-shadow:0 1px 0 rgba(255,235,190,.65)}
+  /* never greyscale: the button stays vivid orange even at 0/2 */
+  .skill-btn.empty{opacity:.92}
+  #skill1{right:22px;bottom:calc(26px + env(safe-area-inset-bottom))}
+  #skill2{right:22px;bottom:calc(160px + env(safe-area-inset-bottom))}
+  body.local2p #skill1{right:auto;left:22px;bottom:calc(170px + env(safe-area-inset-bottom))}
+  body.local2p .skill-btn{width:clamp(62px,8.2vw,150px)}
+  body.local2p #skill2{bottom:calc(170px + env(safe-area-inset-bottom))}
+
+  /* ---------- Screens / overlays ---------- */
+  .screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10;
+    background:rgba(4,3,18,.62);backdrop-filter:blur(3px);padding:16px;overflow-y:auto}
+  .screen.on{display:flex}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:26px 24px;
+    width:min(520px,94vw);text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+  #menuScreen{background:linear-gradient(rgba(5,4,24,.48),rgba(5,4,24,.68)),url('assets/nebula.jpg') center/cover no-repeat;
+    backdrop-filter:none}
+  #menuScreen .panel{background:rgba(10,8,36,.80)}
+  .game-title{font-family:var(--serif);font-size:clamp(30px,6vw,44px);font-weight:900;letter-spacing:.03em;line-height:1.08;
+    background:linear-gradient(180deg,#fff3c4,#ffd76a 48%,#e8930c);-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:none;filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))}
+  .game-sub{color:var(--muted);margin:8px 0 20px;font-size:14px;line-height:1.5}
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 16px;margin:9px 0;
+    border-radius:14px;border:1px solid var(--line);background:var(--chip);color:var(--ink);
+    font-size:16px;font-weight:800;cursor:pointer;font-family:inherit}
+  .btn:active{transform:scale(.98)}
+  .btn.primary{background:linear-gradient(90deg,#ff5da2,#ff8a1e);border:none;color:#fff}
+  .btn.teal{background:linear-gradient(90deg,#0ea5a4,#2ee6c8);border:none;color:#04211c}
+  .btn svg{width:20px;height:20px;flex:0 0 auto}
+  .btn:disabled{opacity:.45;cursor:default}
+  .or-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;font-weight:700;margin:14px 0 4px}
+  .or-row::before,.or-row::after{content:"";flex:1;height:1px;background:var(--line)}
+  .join-row{display:flex;gap:8px;margin-top:9px}
+  .join-row input{flex:1;min-width:0;padding:13px;border-radius:14px;border:1px solid var(--line);
+    background:rgba(0,0,0,.35);color:var(--ink);font-size:18px;font-weight:800;letter-spacing:.35em;
+    text-transform:uppercase;text-align:center;font-family:inherit;outline:none}
+  .join-row .btn{width:auto;margin:0;padding:13px 18px}
+  #lobbyBox{display:none;margin-top:14px;padding:14px;border-radius:14px;background:rgba(0,0,0,.3);border:1px dashed var(--line)}
+  #lobbyBox.on{display:block}
+  #roomCodeBig{font-size:38px;font-weight:900;letter-spacing:.4em;color:var(--accent2);margin:4px 0}
+  #lobbyStatus{font-size:14px;color:var(--muted);line-height:1.5}
+  .help{margin-top:18px;text-align:left;font-size:12.5px;color:var(--muted);line-height:1.65;background:rgba(0,0,0,.25);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .help b{color:var(--ink)}
+  #countdown{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:9;pointer-events:none;
+    background:rgba(3,2,16,.55)}
+  #countdown.on{display:flex}
+  /* the countdown ring + digits are the reference's own sprites */
+  #countImg{width:clamp(150px,17.5vw,336px);height:auto;display:block;filter:drop-shadow(0 0 26px rgba(90,130,255,.55))}
+  #countImg.pulse{animation:countPulse .9s ease-out}
+  @keyframes countPulse{0%{transform:scale(1.14);filter:drop-shadow(0 0 44px rgba(140,180,255,.95)) brightness(1.35)}
+    100%{transform:scale(1);filter:drop-shadow(0 0 26px rgba(90,130,255,.55))}}
+  #countLabel{position:absolute;top:11%;left:50%;transform:translateX(-50%);margin:0;white-space:nowrap}
+  #countLabel img{width:clamp(210px,28.5vw,546px);height:auto;display:block;filter:drop-shadow(0 2px 10px rgba(0,0,0,.6))}
+  /* skill button glows when a Star Orb charge is ready (as in the reference) */
+  .skill-btn.ready{filter:drop-shadow(0 0 18px rgba(255,190,80,.95)) drop-shadow(0 6px 18px rgba(0,0,0,.5)) brightness(1.07)}
+  /* wave-clear ribbon banner, top-centre like the reference */
+  #waveBanner{position:fixed;top:11.5%;left:50%;transform:translateX(-50%) translateY(-8px);z-index:8;text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .3s,transform .3s}
+  #waveBanner.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #waveBanner .ribbon{display:inline-block;background:linear-gradient(180deg,#f2faff,#bcd9ff);color:#1c3f7c;
+    font-family:var(--serif);font-weight:800;font-size:clamp(14px,1.5vw,27px);letter-spacing:.03em;
+    padding:.42em 2.2em;clip-path:polygon(0 0,100% 0,96% 50%,100% 100%,0 100%,4% 50%);
+    box-shadow:0 4px 18px rgba(0,0,0,.4)}
+  #waveBanner .wb-stars{color:var(--gold);font-size:clamp(11px,1.1vw,19px);letter-spacing:.5em;margin-top:4px;
+    text-shadow:0 2px 8px rgba(0,0,0,.6)}
+  /* wave-clear character cut-in: the reference's own illustration */
+  #cutin{position:fixed;left:0;top:15.5%;width:100%;height:auto;z-index:7;display:none;pointer-events:none}
+  #cutin.on{display:block;animation:cutinIn 1.7s ease forwards}
+  @keyframes cutinIn{0%{opacity:0;transform:translateX(-3.5%)}10%{opacity:1;transform:none}78%{opacity:1}100%{opacity:0}}
+  /* ---------- lobby (mirrors the reference's Starfall Breakout lobby) ---------- */
+  #menuScreen .panel.lobby{width:min(880px,96vw);background:rgba(8,6,32,.66);padding:22px 26px}
+  .lobby-title{font-family:var(--serif);font-size:clamp(26px,3.4vw,44px);font-weight:900;letter-spacing:.04em;text-align:center;
+    background:linear-gradient(180deg,#fff3c4,#ffd76a 48%,#e8930c);-webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))}
+  .lobby-main{display:flex;align-items:center;gap:8px;margin-top:6px}
+  .lobby-art{width:44%;max-width:400px;height:auto;flex:0 0 auto;animation:lobbyFloat 3.6s ease-in-out infinite;
+    filter:drop-shadow(0 10px 24px rgba(0,0,0,.5))}
+  @keyframes lobbyFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  .lobby-side{flex:1;min-width:0}
+  .lobby-stats{display:flex;gap:26px;justify-content:center;background:rgba(244,241,255,.94);border-radius:12px;
+    padding:10px 18px;margin:4px auto 14px;max-width:340px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+  .lobby-stats .v{font-size:clamp(17px,1.7vw,24px);font-weight:900;color:#2b2a55;text-align:center}
+  .lobby-stats .k{font-size:10.5px;color:#6a6890;font-weight:700;text-align:center;letter-spacing:.02em}
+  .btn.challenge{background:linear-gradient(180deg,#ffe066,#ffb020);border:1px solid #c47f10;color:#5b3403;
+    font-family:var(--serif);font-size:18px;box-shadow:0 6px 18px rgba(255,176,32,.35)}
+  @media (max-width:640px){ .lobby-main{flex-direction:column} .lobby-art{width:56%} }
+  #toast{position:fixed;left:50%;bottom:calc(128px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+    background:var(--card-solid);border:1px solid var(--line);color:var(--ink);padding:11px 18px;border-radius:999px;
+    font-size:14px;font-weight:700;opacity:0;pointer-events:none;transition:.25s;z-index:30;max-width:92vw;text-align:center}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #netBanner{position:fixed;top:calc(64px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:8;
+    background:rgba(80,10,30,.92);border:1px solid var(--danger);color:#ffe4e9;padding:9px 16px;border-radius:12px;
+    font-size:13.5px;font-weight:700;display:none;max-width:92vw;text-align:center}
+  #netBanner.on{display:block}
+  .stat-grid{display:flex;gap:10px;justify-content:center;margin:16px 0 6px;flex-wrap:wrap}
+  .stat-cell{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:10px 16px;min-width:96px}
+  .stat-cell .v{font-size:22px;font-weight:900}
+  .stat-cell .k{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.08em}
+  .rotate-hint{display:none}
+  @media (orientation:portrait) and (max-width:700px){
+    .rotate-hint{display:block;margin-top:10px;font-size:12px;color:var(--accent2);font-weight:700}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hearts-wrap">
+    <div class="hearts-row" id="heartsRow1"><span class="pname p1name">P1</span><span id="heartsP1"></span></div>
+    <div class="hearts-row" id="heartsRow2" style="display:none"><span class="pname p2name">P2</span><span id="heartsP2"></span></div>
+  </div>
+  <div id="bossWrap"><div class="boss-name">PILLAR OF CREATION</div><div id="bossBar"><div id="bossFill"></div></div></div>
+  <div class="stats">
+    <div class="stats-box">
+      <div class="points-line"><img class="hud-label" src="assets/hud_label.png" alt="Current Points:"><span id="hudPoints" class="digits gold"></span></div>
+      <div class="sub-line">
+        <span class="crys"><img src="assets/crystal.png" alt="" style="width:20px;height:20px;object-fit:contain"><span id="hudCrystals" class="digits white"></span></span>
+        <span class="timer"><img class="hg" src="assets/hourglass.png" alt=""><span id="hudTimer" class="digits white"></span></span>
+      </div>
+    </div>
+    <button id="btnPause" aria-label="Pause"><img src="assets/ui_pause.png" alt=""></button>
+  </div>
+<button class="icon-btn" id="btnMute" aria-label="Mute">
+      <svg id="icoSoundOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.6 5.4a9 9 0 0 1 0 13.2"/></svg>
+      <svg id="icoSoundOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>
+    </button>
+</div>
+
+<div id="netBanner"></div>
+
+<!-- Touch controls -->
+<div class="joy" id="joy1"><span class="joy-label">P1 MOVE</span><div class="knob"></div></div>
+<div class="joy" id="joy2"><span class="joy-label">P2 MOVE</span><div class="knob"></div></div>
+<button class="skill-btn" id="skill1" aria-label="P1 Star Orb skill">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="18" r="1.4"/></svg>
+  <span class="charges" id="skill1Charges">0/2</span>
+</button>
+<button class="skill-btn" id="skill2" aria-label="P2 Star Orb skill">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/><circle cx="19" cy="17" r="2"/><circle cx="5" cy="18" r="1.4"/></svg>
+  <span class="charges" id="skill2Charges">0/2</span>
+</button>
+
+<!-- Countdown -->
+<div id="countdown"><div id="countLabel"><img src="assets/starting_soon.png" alt="Starting soon"></div><img id="countImg" src="assets/cd_3.png" alt=""></div>
+
+<!-- Wave-clear banner + cut-in -->
+<div id="waveBanner"><span class="ribbon" id="waveBannerText">Wave 1 Cleared!</span><div class="wb-stars">✦ ✦ ✦</div></div>
+<img id="cutin" src="assets/cutin_art.png" alt="">
+
+<!-- Menu: Starfall Breakout lobby, laid out like the reference -->
+<div class="screen on" id="menuScreen">
+  <div class="panel lobby">
+    <div class="lobby-title">✦ Starfall Galaxy ✦</div>
+    <div class="lobby-main">
+      <img class="lobby-art" src="assets/char_p1.png" alt="">
+      <div class="lobby-side">
+        <div class="lobby-stats">
+          <div><div class="v" id="bestPoints">0</div><div class="k">Highest Points</div></div>
+          <div><div class="v" id="bestTime">00:00</div><div class="k">Longest Time</div></div>
+        </div>
+        <button class="btn challenge" id="btnSolo">Challenge</button>
+        <button class="btn teal" id="btnLocal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M2.5 20c.5-3.4 2.8-5.2 5.5-5.2s5 1.8 5.5 5.2M14 15.2c2.9-.3 5.8 1.3 6.5 4.8"/></svg>
+          Local 2P — Same Screen Co-op
+        </button>
+        <div class="or-row">ONLINE 2P — TWO DEVICES</div>
+        <button class="btn" id="btnCreate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Create Room (Host)
+        </button>
+        <div class="join-row">
+          <input id="joinCode" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+          <button class="btn" id="btnJoin">Join</button>
+        </div>
+        <div id="lobbyBox">
+          <div style="font-size:12px;font-weight:800;letter-spacing:.15em;color:var(--muted)">ROOM CODE — SHARE WITH PLAYER 2</div>
+          <div id="roomCodeBig">····</div>
+          <div id="lobbyStatus">Connecting…</div>
+          <button class="btn" id="btnCancelLobby" style="margin-top:12px">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div class="help">
+      <b>Controls</b><br>
+      P1: <b>WASD</b> move · <b>Space / E</b> Star Orb skill · touch joystick (left)<br>
+      P2: <b>Arrow keys</b> move · <b>/</b> or <b>.</b> Star Orb skill · touch joystick (right)<br>
+      Shooting is automatic — Piercing Starshots fly through whole lines of meteors, and every hit scores +20. Clear each wave's formations and its Pillar.<br>
+      Power-up Orbs drift in: <b>Starshot Split</b> (extra shots above & below), <b>Piercing Barrage</b> (attack speed), <b>Stellar Shield</b> (long bubble — plow through the swarm), gold <b>Stellar Energy</b> (+1 Star Orb charge). Star Orb charges (max 2/2) also come from meteor kills.<br>
+      In co-op, a downed pilot respawns in 5s while their partner is alive.
+    </div>
+    <div class="rotate-hint">Tip: rotate your phone to landscape for the best view.</div>
+  </div>
+</div>
+
+<!-- Pause -->
+<div class="screen" id="pauseScreen">
+  <div class="panel" style="width:min(380px,94vw)">
+    <div class="game-title" style="font-size:30px">PAUSED</div>
+    <p class="game-sub">The swarm waits for no one… except now.</p>
+    <button class="btn primary" id="btnResume">Resume</button>
+    <button class="btn" id="btnRestart">Restart</button>
+    <button class="btn" id="btnQuit">Quit to Menu</button>
+  </div>
+</div>
+
+<!-- Game over -->
+<div class="screen" id="overScreen">
+  <div class="panel" style="width:min(420px,94vw)">
+    <div class="game-title" style="font-size:32px">MISSION OVER</div>
+    <p class="game-sub" id="overReason">Your glider was destroyed.</p>
+    <div class="stat-grid">
+      <div class="stat-cell"><div class="v" id="finalPoints">0</div><div class="k">POINTS</div></div>
+      <div class="stat-cell"><div class="v" id="finalTime">00:00</div><div class="k">TIME</div></div>
+      <div class="stat-cell"><div class="v" id="finalKills">0</div><div class="k">KILLS</div></div>
+      <div class="stat-cell"><div class="v" id="finalCrystals">0</div><div class="k">CRYSTALS</div></div>
+    </div>
+    <button class="btn primary" id="btnAgain">Play Again</button>
+    <button class="btn" id="btnOverMenu">Back to Menu</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="game.js"></script>
+</body>
+</html>
